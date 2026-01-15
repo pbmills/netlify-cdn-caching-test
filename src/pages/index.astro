@@ -23,6 +23,9 @@ let loadTime = 0;
 let isCached = false;
 let error: string | null = null;
 let isLocalDev = false;
+let cacheInfo = '';
+let totalPageTime = 0;
+let apiCacheStatus = false;
 
 // Check if running locally
 const requestHeaders = Astro.request.headers;
@@ -45,30 +48,39 @@ try {
   
   countries = result.data;
   loadTime = result.loadTime;
+  apiCacheStatus = result.fromCache;
   
   // Calculate total page generation time
-  const totalPageTime = Date.now() - pageStartTime;
+  totalPageTime = Date.now() - pageStartTime;
   
   if (isLocalDev) {
     // Local dev: Only in-memory cache works (no CDN)
     // CDN caching only works when deployed to Netlify
     isCached = result.fromCache; // Only shows in-memory cache status
+    cacheInfo = result.fromCache ? 'In-Memory Cache' : 'Fresh Request';
   } else {
     // Production: Check for CDN cache or in-memory cache
     // Determine cache status:
-    // - If total page time is very fast (< 100ms), likely served from CDN cache (page wasn't regenerated)
-    // - If API was cached but page took longer, it's in-memory cache (function ran but API was cached)
-    // - If both are slow, it's a fresh request
-    if (totalPageTime < 100) {
-      // Very fast = CDN cached the entire HTML page
+    // - If total page time is very fast (< 50ms), definitely served from CDN cache
+    // - If API was cached in-memory, it's still cached (function ran but API was fast)
+    // - If API fetch was fast, likely from cache even if not explicitly marked
+    if (totalPageTime < 50) {
+      // Very fast = CDN cached the entire HTML page (function didn't run)
       isCached = true;
       loadTime = totalPageTime;
+      cacheInfo = 'CDN Cache (HTML)';
     } else if (result.fromCache) {
-      // API was cached in-memory, but page was regenerated
+      // API was cached in-memory - this is still a cache hit
       isCached = true;
+      cacheInfo = 'In-Memory Cache (API)';
+    } else if (loadTime < 100 && totalPageTime < 500) {
+      // Fast API + fast total = likely cached (first request in new function instance)
+      isCached = true;
+      cacheInfo = 'Likely Cached';
     } else {
-      // Fresh request - nothing cached
+      // Slow = fresh request, nothing cached
       isCached = false;
+      cacheInfo = 'Fresh Request';
     }
   }
   
@@ -121,6 +133,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-r
             {isLocalDev && (
               <div class="text-sm text-gray-600">
                 (In-memory cache only)
+              </div>
+            )}
+            {!isLocalDev && (
+              <div class="text-xs text-gray-500 mt-2">
+                {cacheInfo} | API: {apiCacheStatus ? 'Cached' : 'Fresh'} ({loadTime}ms) | Total: {totalPageTime}ms
               </div>
             )}
           </>

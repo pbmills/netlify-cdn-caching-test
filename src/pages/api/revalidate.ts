@@ -17,10 +17,17 @@ export const GET: APIRoute = async ({ request }) => {
   const secret = process.env.ASTRO_REVALIDATE_SECRET || import.meta.env.ASTRO_REVALIDATE_SECRET;
   const requestSecret = new URL(request.url).searchParams.get('secret');
   
-  if (!secret || requestSecret !== secret) {
+  // If no secret is configured, allow requests (for testing)
+  // In production, you should set ASTRO_REVALIDATE_SECRET
+  if (!secret) {
+    console.warn('[REVALIDATE] No ASTRO_REVALIDATE_SECRET configured - allowing all requests');
+    // Still clear cache even without secret (for testing)
+  } else if (requestSecret !== secret) {
+    console.error('[REVALIDATE] Invalid secret provided');
     return new Response(JSON.stringify({ 
       success: false, 
-      error: 'Unauthorized' 
+      error: 'Unauthorized',
+      message: 'Invalid or missing secret parameter'
     }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }

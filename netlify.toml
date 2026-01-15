@@ -2,11 +2,6 @@
   command = "npm run build"
   publish = "dist"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
 # CDN Caching Configuration
 [[headers]]
   for = "/*"
@@ -16,4 +11,4 @@
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+    Cache-Control = "no-store, no-cache, must-revalidate, max-age=0"

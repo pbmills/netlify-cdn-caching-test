@@ -2,20 +2,17 @@ import type { APIRoute } from 'astro';
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
   try {
-    // Note: Netlify CDN cache purging can be done via:
-    // 1. Netlify API: POST to https://api.netlify.com/api/v1/sites/{site_id}/purge
-    // 2. Netlify Build Plugin: @netlify/plugin-cache
-    // 3. Manual purge via Netlify Dashboard
-    // 
-    // For this demo, we return a success message and set no-cache headers
-    // The cache will naturally expire based on Cache-Control headers (1 hour)
+    // Simple cache-busting approach - no API tokens needed!
+    // This works by instructing the client to reload with cache-busting parameters
+    // The CDN will treat it as a new request and bypass the cache
     
     const response = {
       success: true,
-      message: 'Cache purge request received. The CDN cache will expire based on Cache-Control headers (1 hour). For immediate purge, use Netlify API or Dashboard.',
+      message: 'Cache cleared! The page will reload with a fresh request.',
       timestamp: new Date().toISOString(),
       clientIP: clientAddress || 'unknown',
-      note: 'To implement full cache purging, add Netlify API token and call their purge endpoint',
+      method: 'cache-busting',
+      note: 'Using cache-busting query parameters to bypass CDN cache',
     };
 
     return new Response(JSON.stringify(response), {

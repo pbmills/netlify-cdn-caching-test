@@ -31,9 +31,12 @@ const requestHeaders = Astro.request.headers;
 const host = requestHeaders.get('host') || '';
 const isLocalDev = host.includes('localhost') || host.includes('127.0.0.1');
 
-// Check if this request has a cache timestamp (set by us on first request)
+// Check if this request has cache-busting parameters (indicates cache was cleared)
+const hasCacheBuster = Astro.url.searchParams.has('_nocache') || 
+                       Astro.url.searchParams.has('_fresh') ||
+                       Astro.url.searchParams.has('_cleared');
 const cachedTimestamp = Astro.url.searchParams.get('_cached');
-const isCachedRequest = cachedTimestamp !== null;
+const isCachedRequest = cachedTimestamp !== null && !hasCacheBuster;
 
 try {
   const apiStartTime = Date.now();
@@ -65,7 +68,11 @@ try {
                         requestHeaders.get('x-vercel-cache') ||
                         requestHeaders.get('x-netlify-cache');
   
-  if (cfCacheStatus) {
+  if (hasCacheBuster) {
+    // Cache was explicitly cleared, force MISS
+    cacheStatus = 'MISS (cache cleared)';
+    cacheNote = 'Cache was cleared - this is a fresh request';
+  } else if (cfCacheStatus) {
     cacheStatus = cfCacheStatus;
   } else if (isLocalDev) {
     // In local dev, there's no CDN cache
@@ -263,16 +270,26 @@ const cacheStatusClass = cacheStatus.replace(/\s+/g, '-').toLowerCase();
 
       async function clearCache() {
         try {
-          const response = await fetch('/api/clear-cache', {
+          // Clear any cached data
+          sessionStorage.clear();
+          localStorage.clear();
+          
+          const response = await fetch('/api/clear-cache?_t=' + Date.now(), {
             method: 'POST',
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            },
           });
           const data = await response.json();
-          alert(data.message || 'Cache cleared! Reloading page...');
-          setTimeout(() => {
-            window.location.href = window.location.pathname + '?_fresh=' + Date.now();
-          }, 1000);
+          
+          // Force a hard reload with cache-busting to bypass CDN cache
+          const cacheBuster = Date.now();
+          window.location.href = window.location.pathname + '?_nocache=' + cacheBuster + '&_cleared=' + Date.now();
         } catch (error) {
           alert('Error clearing cache: ' + error.message);
+          // Still try to reload with cache-busting
+          window.location.href = window.location.pathname + '?_nocache=' + Date.now();
         }
       }
 

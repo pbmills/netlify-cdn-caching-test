@@ -76,17 +76,38 @@ The caching is configured in `netlify.toml`:
 
 ## API Endpoints
 
-### Clear Cache
+### Revalidate Cache
 
-**POST** `/api/clear-cache`
+**GET** `/api/revalidate?secret=your-secret`  
+**POST** `/api/revalidate` (with `x-revalidate-secret` header)
 
-Manually trigger a cache purge. Note: Full cache purging requires Netlify API access. The endpoint returns a success message, but actual cache purging would need to be implemented via Netlify's API.
+Manually trigger a cache clear. Requires a secret key for security.
+
+**Setup:**
+1. Set the `ASTRO_REVALIDATE_SECRET` environment variable in Netlify
+2. Use the secret in the query parameter: `/api/revalidate?secret=your-secret`
+
+**How it works:**
+- Validates the secret before clearing cache
+- Uses cache-busting to bypass CDN cache
+- Can be called from webhooks or manually via URL
+- Perfect for demonstrating cache behavior
+
+**Example:**
+```bash
+# Via GET request
+curl "https://your-site.netlify.app/api/revalidate?secret=your-secret"
+
+# Via POST request
+curl -X POST "https://your-site.netlify.app/api/revalidate" \
+  -H "x-revalidate-secret: your-secret"
+```
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Cache purge request received...",
+  "message": "Cache cleared successfully",
   "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
@@ -98,23 +119,6 @@ Manually trigger a cache purge. Note: Full cache purging requires Netlify API ac
 3. **Check Cache Status**: Look at the "Cache Status" indicator - it should show "HIT" on cached requests
 4. **Clear Cache**: Click the "Clear Cache" button to see the difference
 
-## Advanced: Full Cache Purge
-
-To implement full cache purging via Netlify API, you would need to:
-
-1. Set up a Netlify API token
-2. Use Netlify's purge cache API endpoint
-3. Update the `/api/clear-cache` endpoint to call Netlify's API
-
-Example implementation would use:
-```javascript
-await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/purge`, {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${netlifyToken}`,
-  },
-});
-```
 
 ## Project Structure
 

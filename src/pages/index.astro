@@ -93,9 +93,14 @@ try {
 }
 
 // Set cache headers for Netlify CDN (like special olympics)
-// This tells Netlify to cache the HTML page for 1 hour
+// For Netlify SSR, we need Netlify-CDN-Cache-Control for proper CDN caching
+// This tells Netlify to cache the HTML page for 1 hour with durable caching
 // Note: This only works when deployed to Netlify, not in local dev
-Astro.response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+if (!isLocalDev) {
+  Astro.response.headers.set('Netlify-CDN-Cache-Control', 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400, durable');
+  // Also set standard Cache-Control for browser and other CDNs
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
+}
 ---
 
 <!DOCTYPE html>
